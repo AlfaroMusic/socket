@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Chat Socket.io</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 24px auto; }
+    .row { display: flex; gap: 8px; margin-bottom: 8px; }
+    input, button { padding: 8px; font-size: 14px; }
+    #mensajes { list-style: none; padding: 0; margin-top: 16px; }
+    #mensajes li { padding: 6px 8px; border-bottom: 1px solid #eee; }
+    .system { color: #666; font-style: italic; }
+    .me { font-weight: 600; }
+    .meta { font-size: 12px; color: #888; margin-left: 6px; }
+  </style>
+</head>
+<body>
+  <h1>Chat en tiempo real</h1>
+
+  <!-- Login sencillo -->
+  <div id="login">
+    <div class="row">
+      <input id="nombre" placeholder="Tu nombre (ej. Daniel)" />
+      <button id="btnEntrar">Entrar</button>
+    </div>
+    <small>Escribe tu nombre y presiona Entrar para unirte.</small>
+  </div>
+
+  <!-- Área de chat -->
+  <div id="chat" style="display:none;">
+    <div class="row">
+      <input id="mensaje" placeholder="Escribe un mensaje" style="flex:1;" />
+      <button id="btnEnviar">Enviar</button>
+    </div>
+    <ul id="mensajes"></ul>
+  </div>
+
+  <script>
+    const socket = io(); // mismo origen
+    const login = document.getElementById('login');
+    const chat = document.getElementById('chat');
+    const nombre = document.getElementById('nombre');
+    const btnEntrar = document.getElementById('btnEntrar');
+    const mensaje = document.getElementById('mensaje');
+    const btnEnviar = document.getElementById('btnEnviar');
+    const lista = document.getElementById('mensajes');
+
+    let myName = '';
+
+    // Entrar al chat con nombre
+    btnEntrar.addEventListener('click', () => {
+      const n = (nombre.value || '').trim();
+      if (!n) { nombre.focus(); return; }
+      myName = n;
+      socket.emit('join', myName);
+      login.style.display = 'none';
+      chat.style.display = 'block';
+      mensaje.focus();
+      addSystem(`Te uniste como ${myName}`);
+    });
+
+    // Enviar mensaje
+    function enviar() {
+      const text = (mensaje.value || '').trim();
+      if (!text) return;
+      socket.emit('mensaje', text);
+      mensaje.value = '';
+      mensaje.focus();
+    }
+    btnEnviar.addEventListener('click', enviar);
+    mensaje.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') enviar();
+    });
+
+    // Recibir mensaje
+    socket.on('mensaje', (payload) => {
+      const { user, text, ts } = payload;
+      const li = document.createElement('li');
+      const isMe = user === myName;
+      const who = isMe ? `${user} (yo)` : user;
+      const time = ts ? new Date(ts).toLocaleTimeString() : '';
+      li.innerHTML = `<span class="${isMe ? 'me' : ''}">${who}:</span> ${escapeHtml(text)} <span class="meta">${time}</span>`;
+      lista.appendChild(li);
+      scrollBottom();
+    });
+
+    // Mensajes de sistema (uniones/salidas)
+    socket.on('system', (text) => {
+      addSystem(text);
+    });
+
+    function addSystem(text) {
+      const li = document.createElement('li');
+      li.className = 'system';
+      li.textContent = text;
+      lista.appendChild(li);
+      scrollBottom();
+    }
+
+    function scrollBottom() {
+      window.requestAnimationFrame(() => {
+        window.scrollTo(0, document.body.scrollHeight);
+      });
+    }
+
+    // Pequeña sanitización
+    function escapeHtml(str) {
+      return str.replace(/[&<>"']/g, m => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[m]));
+    }
+  </script>
+</body>
+</html>
