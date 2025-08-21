@@ -9,7 +9,7 @@
       "start": "node server/server.js"
     },
     "engines": {
-      "node": "18.x"
+      "node": "20.x"
     },
     "author": "",
     "license": "ISC",
